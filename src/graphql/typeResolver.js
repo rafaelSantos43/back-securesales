@@ -1,6 +1,5 @@
 import { ApolloError } from 'apollo-server-express'
 import mongoose from 'mongoose'
-import Jwt from 'jsonwebtoken'
 import {GraphQLJSON} from 'graphql-type-json'
 import User from '../models/User.js'
 import Feedback from '../models/feedback.js'
@@ -9,6 +8,8 @@ import  GraphQLDateTime  from 'graphql-type-datetime'
 
 //const { ObjectId } = require("mongoose").Types;
 import { PubSub, withFilter } from 'graphql-subscriptions'
+import HistoryActivity from '../models/historyActivity.js'
+import { logActivity } from '../utils/logActivity.js'
 
 
 //const pubSub = new PubSub()
@@ -103,6 +104,17 @@ const resolvers = {
         throw new ApolloError('Error al obtener las simulaciones del usuario', 'SIMULATION_FETCH_ERROR');
       }
     },
+
+    getHistoryActivity: async (_, { userId }) => {
+      try {
+        const activities = await HistoryActivity.find({ userId }).sort({ timestamp: -1 });
+        return activities;
+      } catch (error) {
+        console.error("Error fetching activity history:", error);
+        throw new Error("No se pudo obtener el historial de actividades.");
+      }
+    },
+
     GetUser: async (_, { userId }) => {
       try {
         const users = await User.find()
@@ -147,8 +159,10 @@ const resolvers = {
 
     createSimulation: async (_, { input }) => {
       try {
+        const {userId} = input 
         const simulation = new Simulations(input);
-        return await simulation.save();
+        await logActivity(userId, "Inició simulación", "El usuario comenzó una nueva simulación.")
+        return await simulation.save()
       } catch (error) {
         throw new ApolloError('Error al crear la simulación', 'SIMULATION_CREATE_ERROR');
       }

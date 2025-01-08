@@ -1,5 +1,16 @@
 const typeDefs = `
   directive @hasRole(roles: [String!]!) on FIELD_DEFINITION
+
+  enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+  enum Role {
+  ADMIN
+  USUARIO
+}
   
   type User {
   id: ID!
@@ -13,13 +24,11 @@ const typeDefs = `
   avatar: String
   role: Role!
   simulation:Simulation
+  skillLevel: SkillLevel!
   createdAt: String!
   updatedAt: String!
 }
-  enum Role {
-  ADMIN
-  USUARIO
-}
+ 
 
   input CreateUser {
   name: String!
@@ -39,6 +48,14 @@ const typeDefs = `
     password: String
     avartar: String
   }
+
+  type Activity {
+  id: ID!
+  userId: ID!
+  activityType: String!
+  description: String
+  timestamp: String!
+}
   scalar JSON
   type Simulation {
   id: ID!
@@ -125,6 +142,7 @@ input UpdateFeedbackInput {
     getFeedbackBySimulation(simulationId: ID!): [Feedback]
     getSimulation(id: ID!): Simulation
     getSimulationsByUser(userId:ID!):User
+    getHistoryActivity(userId: ID!): [Activity!]!
     GetUser(userId: ID!): User @hasRole(roles: ["admin"])
   }
 
@@ -140,6 +158,6 @@ input UpdateFeedbackInput {
     deleteSimulation(id: ID!): Boolean
   }
 
-`
+`;
 
-export default typeDefs
+export default typeDefs;

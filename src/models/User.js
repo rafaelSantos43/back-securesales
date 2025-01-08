@@ -38,7 +38,14 @@ const userSchema = new mongoose.Schema(
       enum: ['admin', 'usuario'],
       default: 'usuario',
     },
+    skillLevel: { 
+      type: String, 
+      enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"], 
+      required: true, 
+      default: "BEGINNER" 
+    },
   },
+  
   {
     timestamps: true,
     versionKey: false

@@ -19,15 +19,58 @@ dotenv.config();
 
 const app = express();
 
-
-
-
 app.use(express.json());
 app.use(cors());
 
 const httpServer = createServer(app);
 
 const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+
+const getFirebasePublicKeys = async () => {
+  try {
+    const response = await fetch(
+      'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching Firebase public keys:", error);
+    throw error; // Rethrow the error to handle it upstream if needed
+  }
+};
+
+const verifyFirebaseToken = async (token) => {
+  const firebaseKeys = await getFirebasePublicKeys(); // Obtiene las claves públicas
+  const decodedHeader = Jwt.decode(token, { complete: true }); // Decodifica el encabezado
+  
+  if (!decodedHeader || !decodedHeader.header) {
+    throw new Error("Encabezado del token inválido");
+  }
+  
+  const { kid } = decodedHeader.header; // Obtén el 'kid' del encabezado
+  const key = firebaseKeys.keys.find((k) => k.kid === kid); // Encuentra la clave pública correspondiente
+  
+  if (!key) {
+    throw new Error("Clave pública no encontrada para el token");
+  }
+  
+  // Construye la clave pública en formato PEM
+  const publicKey = `-----BEGIN CERTIFICATE-----\n${key.x5c[0]}\n-----END CERTIFICATE-----`;
+  
+  try {
+    // Verifica el token usando la clave pública
+    const decodedToken = Jwt.verify(token, publicKey, {
+      algorithms: ["RS256"],
+    });
+    return decodedToken;
+  } catch (error) {
+    throw new Error("Token inválido o expirado");
+  }
+};
 
 const server = new ApolloServer({
   schema,
@@ -59,16 +102,17 @@ const serverStart = async () => {
     "/graphql",
     cors(),
     expressMiddleware(server, {
-      context: ({req}) => {    
+      context: async ({req}) => {    
         const authHeader = req?.headers?.authorization
-        console.log(req.headers);
+        
         
         if (!authHeader) {
           console.error('No se proporcionó un token')
           throw new Error('Token no proporcionado')
         }
         try {
-            const decodedToken = Jwt.verify(authHeader, process.env.SECRET_KEY)
+          const decodedToken = await verifyFirebaseToken(authHeader)
+            //const decodedToken = Jwt.verify(authHeader, process.env.SECRET_KEY)
             req.user = decodedToken
             console.log("token verificado", decodedToken);
             
